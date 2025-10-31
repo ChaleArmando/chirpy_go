@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"slices"
+	"strings"
 	"sync/atomic"
 )
 
@@ -46,7 +48,7 @@ func validateChirpyHandler(w http.ResponseWriter, r *http.Request) {
 		Body string `json:"body"`
 	}
 	type returnValue struct {
-		Valid bool `json:"valid"`
+		CleanedBody string `json:"cleaned_body"`
 	}
 
 	decoder := json.NewDecoder(r.Body)
@@ -60,8 +62,21 @@ func validateChirpyHandler(w http.ResponseWriter, r *http.Request) {
 		respondJsonError(w, http.StatusBadRequest, "Chirp is too long", nil)
 		return
 	}
+
 	respBody := returnValue{
-		Valid: true,
+		CleanedBody: replaceBadWords(params.Body),
 	}
 	respondJson(w, http.StatusOK, respBody)
+}
+
+func replaceBadWords(respBody string) string {
+	badWords := []string{"kerfuffle", "sharbert", "fornax"}
+	words := strings.Fields(respBody)
+	lowerWords := strings.Fields(strings.ToLower(respBody))
+	for id, word := range lowerWords {
+		if slices.Contains(badWords, word) {
+			words[id] = "****"
+		}
+	}
+	return strings.Join(words, " ")
 }
