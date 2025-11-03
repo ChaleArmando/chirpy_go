@@ -24,9 +24,11 @@ func (cfg *apiConfig) metricHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(html))
 }
 
+/*
 func (cfg *apiConfig) resetMetricHandler(w http.ResponseWriter, r *http.Request) {
 	cfg.fileserverHits.Swap(0)
 	w.Header().Add("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("File Hits reset to 0"))
 }
+*/

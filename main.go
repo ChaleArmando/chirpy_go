@@ -18,7 +18,8 @@ import (
 
 type apiConfig struct {
 	fileserverHits atomic.Int32
-	dbConnect      *database.Queries
+	dbQueries      *database.Queries
+	platform       string
 }
 
 func main() {
@@ -35,7 +36,8 @@ func main() {
 	mux := http.NewServeMux()
 	apiCfg := apiConfig{
 		fileserverHits: atomic.Int32{},
-		dbConnect:      dbQueries,
+		dbQueries:      dbQueries,
+		platform:       os.Getenv("PLATFORM"),
 	}
 
 	fs := http.FileServer(http.Dir("."))
@@ -46,7 +48,8 @@ func main() {
 	mux.HandleFunc("POST /api/validate_chirp", validateChirpyHandler)
 
 	mux.HandleFunc("GET /admin/metrics", apiCfg.metricHandler)
-	mux.HandleFunc("POST /admin/reset", apiCfg.resetMetricHandler)
+	mux.HandleFunc("POST /admin/reset", apiCfg.resetHandler)
+	mux.HandleFunc("POST /api/users", apiCfg.createUserHandler)
 
 	server := &http.Server{
 		Addr:    ":8080",
