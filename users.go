@@ -30,6 +30,7 @@ func (cfg *apiConfig) createUserHandler(w http.ResponseWriter, r *http.Request) 
 	user, err := cfg.dbQueries.CreateUser(r.Context(), params.Email)
 	if err != nil {
 		respondJsonError(w, http.StatusInternalServerError, "failed creating user", err)
+		return
 	}
 	newUser := User{
 		ID:        user.ID,
@@ -42,16 +43,19 @@ func (cfg *apiConfig) createUserHandler(w http.ResponseWriter, r *http.Request) 
 }
 
 func (cfg *apiConfig) resetHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Add("Content-Type", "text/plain; charset=utf-8")
 	if cfg.platform != "dev" {
-		respondJsonError(w, http.StatusForbidden, "execute only in development environment", nil)
+		w.WriteHeader(http.StatusForbidden)
+		w.Write([]byte("execute only in development environment"))
 		return
 	}
 	cfg.fileserverHits.Swap(0)
 	err := cfg.dbQueries.ResetUsers(r.Context())
 	if err != nil {
-		respondJsonError(w, http.StatusInternalServerError, "failed to reset users", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("failed to reset users: " + err.Error()))
+		return
 	}
-	w.Header().Add("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("File Hits reset to 0 and Database reset to initial state"))
 }
