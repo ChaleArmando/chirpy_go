@@ -57,6 +57,27 @@ func (cfg *apiConfig) createChirpsHandler(w http.ResponseWriter, r *http.Request
 	respondJson(w, http.StatusCreated, newChirp)
 }
 
+func (cfg *apiConfig) getChirpsHandler(w http.ResponseWriter, r *http.Request) {
+	chirps, err := cfg.dbQueries.GetChirps(r.Context())
+	if err != nil {
+		respondJsonError(w, http.StatusInternalServerError, "failed creating chirp", err)
+		return
+	}
+	jsonChirps := []Chirp{}
+	for _, dbChirp := range chirps {
+		jsonChirp := Chirp{
+			ID:        dbChirp.ID,
+			CreatedAt: dbChirp.CreatedAt,
+			UpdatedAt: dbChirp.UpdatedAt,
+			Body:      dbChirp.Body,
+			UserId:    dbChirp.UserID,
+		}
+		jsonChirps = append(jsonChirps, jsonChirp)
+	}
+
+	respondJson(w, http.StatusOK, jsonChirps)
+}
+
 func replaceBadWords(respBody string) string {
 	badWords := []string{"kerfuffle", "sharbert", "fornax"}
 	words := strings.Fields(respBody)
