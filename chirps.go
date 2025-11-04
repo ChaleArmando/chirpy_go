@@ -57,10 +57,33 @@ func (cfg *apiConfig) createChirpsHandler(w http.ResponseWriter, r *http.Request
 	respondJson(w, http.StatusCreated, newChirp)
 }
 
+func (cfg *apiConfig) getChirpHandler(w http.ResponseWriter, r *http.Request) {
+	chirpID, err := uuid.Parse(r.PathValue("chirpID"))
+	if err != nil {
+		respondJsonError(w, http.StatusInternalServerError, "failed to transform id into uuid, invalid id", err)
+		return
+	}
+	chirp, err := cfg.dbQueries.GetChirp(r.Context(), chirpID)
+	if err != nil {
+		respondJsonError(w, http.StatusNotFound, "failed to get chirp", err)
+		return
+	}
+
+	jsonChirp := Chirp{
+		ID:        chirp.ID,
+		CreatedAt: chirp.CreatedAt,
+		UpdatedAt: chirp.UpdatedAt,
+		Body:      chirp.Body,
+		UserId:    chirp.UserID,
+	}
+
+	respondJson(w, http.StatusOK, jsonChirp)
+}
+
 func (cfg *apiConfig) getChirpsHandler(w http.ResponseWriter, r *http.Request) {
 	chirps, err := cfg.dbQueries.GetChirps(r.Context())
 	if err != nil {
-		respondJsonError(w, http.StatusInternalServerError, "failed creating chirp", err)
+		respondJsonError(w, http.StatusInternalServerError, "failed to get chirps", err)
 		return
 	}
 	jsonChirps := []Chirp{}
