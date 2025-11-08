@@ -58,8 +58,14 @@ func (cfg *apiConfig) createUserHandler(w http.ResponseWriter, r *http.Request) 
 
 func (cfg *apiConfig) loginHandler(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
-		Email    string `json:"email"`
-		Password string `json:"password"`
+		Email            string `json:"email"`
+		Password         string `json:"password"`
+		ExpiresInSeconds int    `json:"expires_in_seconds"`
+	}
+
+	type response struct {
+		User
+		Token string `json:"token"`
 	}
 
 	decoder := json.NewDecoder(r.Body)
@@ -81,13 +87,25 @@ func (cfg *apiConfig) loginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	newUser := User{
-		ID:        user.ID,
-		CreatedAt: user.CreatedAt,
-		UpdatedAt: user.UpdatedAt,
-		Email:     user.Email,
+	expirationTime := time.Hour
+	if params.ExpiresInSeconds > 0 && params.ExpiresInSeconds < 3600 {
+		expirationTime = time.Duration(params.ExpiresInSeconds) * time.Second
 	}
-	respondJson(w, http.StatusOK, newUser)
+	token, err := auth.MakeJWT(user.ID, cfg.secret, expirationTime)
+	if err != nil {
+		respondJsonError(w, http.StatusInternalServerError, "Failed creating Token", err)
+		return
+	}
+	jsonResp := response{
+		User: User{
+			ID:        user.ID,
+			CreatedAt: user.CreatedAt,
+			UpdatedAt: user.UpdatedAt,
+			Email:     user.Email,
+		},
+		Token: token,
+	}
+	respondJson(w, http.StatusOK, jsonResp)
 }
 
 func (cfg *apiConfig) resetHandler(w http.ResponseWriter, r *http.Request) {

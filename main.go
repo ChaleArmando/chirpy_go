@@ -17,11 +17,24 @@ type apiConfig struct {
 	fileserverHits atomic.Int32
 	dbQueries      *database.Queries
 	platform       string
+	secret         string
 }
 
 func main() {
 	godotenv.Load()
 	dbURL := os.Getenv("DB_URL")
+	if dbURL == "" {
+		log.Fatal("DB_URL environment variable not assigned")
+	}
+	platform := os.Getenv("PLATFORM")
+	if dbURL == "" {
+		log.Fatal("PLATFORM environment variable not assigned")
+	}
+	secret := os.Getenv("SECRET")
+	if dbURL == "" {
+		log.Fatal("SECRET environment variable not assigned")
+	}
+
 	db, err := sql.Open("postgres", dbURL)
 	if err != nil {
 		log.Fatal("Can't connect to DB", err)
@@ -34,7 +47,8 @@ func main() {
 	apiCfg := apiConfig{
 		fileserverHits: atomic.Int32{},
 		dbQueries:      dbQueries,
-		platform:       os.Getenv("PLATFORM"),
+		platform:       platform,
+		secret:         secret,
 	}
 
 	fs := http.FileServer(http.Dir("."))
@@ -55,6 +69,7 @@ func main() {
 		Addr:    ":8080",
 		Handler: mux,
 	}
+	log.Println("Serving on port: 8080")
 	log.Fatal(server.ListenAndServe())
 
 }
