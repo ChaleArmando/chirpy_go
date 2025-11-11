@@ -91,6 +91,41 @@ func (cfg *apiConfig) getChirpHandler(w http.ResponseWriter, r *http.Request) {
 	respondJson(w, http.StatusOK, jsonChirp)
 }
 
+func (cfg *apiConfig) deleteChirpHandler(w http.ResponseWriter, r *http.Request) {
+	bearerToken, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		respondJsonError(w, http.StatusUnauthorized, "Couldn't find JWT", err)
+		return
+	}
+	userId, err := auth.ValidateJWT(bearerToken, cfg.secret)
+	if err != nil {
+		respondJsonError(w, http.StatusUnauthorized, err.Error(), err)
+		return
+	}
+
+	chirpID, err := uuid.Parse(r.PathValue("chirpID"))
+	if err != nil {
+		respondJsonError(w, http.StatusInternalServerError, "failed to transform id into uuid, invalid id", err)
+		return
+	}
+	chirp, err := cfg.dbQueries.GetChirp(r.Context(), chirpID)
+	if err != nil {
+		respondJsonError(w, http.StatusNotFound, "failed to found chirp", err)
+		return
+	}
+	if chirp.UserID != userId {
+		respondJsonError(w, http.StatusForbidden, "chirp doesn't belong to this user", err)
+		return
+	}
+	_, err = cfg.dbQueries.DeleteChirp(r.Context(), chirpID)
+	if err != nil {
+		respondJsonError(w, http.StatusNotFound, "failed to delete chirp", err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (cfg *apiConfig) getChirpsHandler(w http.ResponseWriter, r *http.Request) {
 	chirps, err := cfg.dbQueries.GetChirps(r.Context())
 	if err != nil {
