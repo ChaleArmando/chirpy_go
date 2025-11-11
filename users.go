@@ -58,21 +58,21 @@ func (cfg *apiConfig) createUserHandler(w http.ResponseWriter, r *http.Request) 
 
 func (cfg *apiConfig) loginHandler(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
-		Email            string `json:"email"`
-		Password         string `json:"password"`
-		ExpiresInSeconds int    `json:"expires_in_seconds"`
+		Email    string `json:"email"`
+		Password string `json:"password"`
 	}
 
 	type response struct {
 		User
-		Token string `json:"token"`
+		Token        string `json:"token"`
+		RefreshToken string `json:"refresh_token"`
 	}
 
 	decoder := json.NewDecoder(r.Body)
 	params := parameters{}
 	err := decoder.Decode(&params)
 	if err != nil {
-		respondJsonError(w, http.StatusInternalServerError, "failed decoding parameters", err)
+		respondJsonError(w, http.StatusInternalServerError, "Failed decoding parameters", err)
 		return
 	}
 
@@ -88,14 +88,27 @@ func (cfg *apiConfig) loginHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	expirationTime := time.Hour
-	if params.ExpiresInSeconds > 0 && params.ExpiresInSeconds < 3600 {
-		expirationTime = time.Duration(params.ExpiresInSeconds) * time.Second
-	}
-	token, err := auth.MakeJWT(user.ID, cfg.secret, expirationTime)
+	accessToken, err := auth.MakeJWT(user.ID, cfg.secret, expirationTime)
 	if err != nil {
-		respondJsonError(w, http.StatusInternalServerError, "Failed creating Token", err)
+		respondJsonError(w, http.StatusInternalServerError, "Failed creating Access Token", err)
 		return
 	}
+
+	refToken, err := auth.MakeRefreshToken()
+	if err != nil {
+		respondJsonError(w, http.StatusInternalServerError, "Failed creating Refresh Token", err)
+		return
+	}
+	refTokenParams := database.CreateRefreshTokenParams{
+		Token:  refToken,
+		UserID: user.ID,
+	}
+	dbRefreshToken, err := cfg.dbQueries.CreateRefreshToken(r.Context(), refTokenParams)
+	if err != nil {
+		respondJsonError(w, http.StatusInternalServerError, "Failed saving Refresh Token in DB", err)
+		return
+	}
+
 	jsonResp := response{
 		User: User{
 			ID:        user.ID,
@@ -103,7 +116,8 @@ func (cfg *apiConfig) loginHandler(w http.ResponseWriter, r *http.Request) {
 			UpdatedAt: user.UpdatedAt,
 			Email:     user.Email,
 		},
-		Token: token,
+		Token:        accessToken,
+		RefreshToken: dbRefreshToken.Token,
 	}
 	respondJson(w, http.StatusOK, jsonResp)
 }
