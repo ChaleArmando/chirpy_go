@@ -18,6 +18,7 @@ type apiConfig struct {
 	dbQueries      *database.Queries
 	platform       string
 	secret         string
+	polkaKey       string
 }
 
 func main() {
@@ -27,12 +28,16 @@ func main() {
 		log.Fatal("DB_URL environment variable not assigned")
 	}
 	platform := os.Getenv("PLATFORM")
-	if dbURL == "" {
+	if platform == "" {
 		log.Fatal("PLATFORM environment variable not assigned")
 	}
 	secret := os.Getenv("SECRET")
-	if dbURL == "" {
+	if secret == "" {
 		log.Fatal("SECRET environment variable not assigned")
+	}
+	polkaKey := os.Getenv("POLKA_KEY")
+	if polkaKey == "" {
+		log.Fatal("POLKA_KEY environment variable not assigned")
 	}
 
 	db, err := sql.Open("postgres", dbURL)
@@ -49,6 +54,7 @@ func main() {
 		dbQueries:      dbQueries,
 		platform:       platform,
 		secret:         secret,
+		polkaKey:       polkaKey,
 	}
 
 	fs := http.FileServer(http.Dir("."))
