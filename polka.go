@@ -9,7 +9,7 @@ import (
 
 func (cfg *apiConfig) polkaWebhookHandler(w http.ResponseWriter, r *http.Request) {
 	type data struct {
-		User_ID string `json:"user_id"`
+		UserID uuid.UUID `json:"user_id"`
 	}
 
 	type parameters struct {
@@ -30,21 +30,15 @@ func (cfg *apiConfig) polkaWebhookHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	userID, err := uuid.Parse(params.Data.User_ID)
+	_, err = cfg.dbQueries.GetUser(r.Context(), params.Data.UserID)
 	if err != nil {
-		respondJsonError(w, http.StatusInternalServerError, "failed to transform id into uuid, invalid id", err)
+		respondJsonError(w, http.StatusNotFound, "failed finding user", err)
 		return
 	}
 
-	_, err = cfg.dbQueries.GetUser(r.Context(), userID)
+	err = cfg.dbQueries.UpgradeChirpyRed(r.Context(), params.Data.UserID)
 	if err != nil {
-		w.WriteHeader(http.StatusNotFound)
-		return
-	}
-
-	err = cfg.dbQueries.UpgradeChirpyRed(r.Context(), userID)
-	if err != nil {
-		w.WriteHeader(http.StatusNotFound)
+		respondJsonError(w, http.StatusInternalServerError, "failed updating user", err)
 		return
 	}
 
