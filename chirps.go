@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"slices"
+	"sort"
 	"strings"
 	"time"
 
@@ -127,6 +128,9 @@ func (cfg *apiConfig) deleteChirpHandler(w http.ResponseWriter, r *http.Request)
 }
 
 func (cfg *apiConfig) getChirpsHandler(w http.ResponseWriter, r *http.Request) {
+	authorID := r.URL.Query().Get("author_id")
+	sortParam := r.URL.Query().Get("sort")
+
 	chirps, err := cfg.dbQueries.GetChirps(r.Context())
 	if err != nil {
 		respondJsonError(w, http.StatusInternalServerError, "failed to get chirps", err)
@@ -134,14 +138,20 @@ func (cfg *apiConfig) getChirpsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	jsonChirps := []Chirp{}
 	for _, dbChirp := range chirps {
-		jsonChirp := Chirp{
-			ID:        dbChirp.ID,
-			CreatedAt: dbChirp.CreatedAt,
-			UpdatedAt: dbChirp.UpdatedAt,
-			Body:      dbChirp.Body,
-			UserId:    dbChirp.UserID,
+		if authorID == "" || authorID == dbChirp.UserID.String() {
+			jsonChirp := Chirp{
+				ID:        dbChirp.ID,
+				CreatedAt: dbChirp.CreatedAt,
+				UpdatedAt: dbChirp.UpdatedAt,
+				Body:      dbChirp.Body,
+				UserId:    dbChirp.UserID,
+			}
+			jsonChirps = append(jsonChirps, jsonChirp)
 		}
-		jsonChirps = append(jsonChirps, jsonChirp)
+
+	}
+	if sortParam == "desc" {
+		sort.Slice(jsonChirps, func(i, j int) bool { return jsonChirps[i].CreatedAt.After(jsonChirps[j].CreatedAt) })
 	}
 
 	respondJson(w, http.StatusOK, jsonChirps)
